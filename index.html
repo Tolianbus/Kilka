@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TOLIANBUS</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+    }
+    #title {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 128px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+<div id="title">TOLIANBUS</div>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let width, height;
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+let projectiles = [];
+
+let isMouseDown = false;
+let emissionInterval = 500;
+let minInterval = 25;
+let intervalDecay = 0.9;
+let emitterTimer;
+
+canvas.addEventListener("mousedown", (e) => {
+  isMouseDown = true;
+  emitProjectile(e.clientX, e.clientY);
+  startEmitter(e.clientX, e.clientY);
+});
+
+canvas.addEventListener("mouseup", () => {
+  isMouseDown = false;
+  clearInterval(emitterTimer);
+  emissionInterval = 500;
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  if (isMouseDown) {
+    emitterX = e.clientX;
+    emitterY = e.clientY;
+  }
+});
+
+let emitterX = width / 2;
+let emitterY = height / 2;
+
+function startEmitter(x, y) {
+  emitterX = x;
+  emitterY = y;
+  emitterTimer = setInterval(() => {
+    emitProjectile(emitterX, emitterY);
+    emissionInterval = Math.max(minInterval, emissionInterval * intervalDecay);
+    clearInterval(emitterTimer);
+    if (isMouseDown) {
+      startEmitter(emitterX, emitterY);
+    }
+  }, emissionInterval);
+}
+
+function emitProjectile(x, y) {
+  projectiles.push(new Projectile(x, y));
+}
+
+class Projectile {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 4;
+    this.vy = -Math.random() * 2 - 2;
+    this.ax = 0;
+    this.ay = 0.05;
+    this.history = [];
+    this.hue = Math.random() * 360;
+  }
+
+  update() {
+    this.vx += this.ax;
+    this.vy += this.ay;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.history.push({x: this.x, y: this.y, hue: this.hue});
+    this.hue += 3;
+    if (this.history.length > 50) this.history.shift();
+  }
+
+  draw(ctx) {
+    for (let i = 0; i < this.history.length - 1; i++) {
+      const p1 = this.history[i];
+      const p2 = this.history[i + 1];
+      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 50%, ${i / this.history.length})`;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
+  }
+
+  isOffscreen() {
+    return this.x < -100 || this.x > width + 100 || this.y > height + 100;
+  }
+}
+
+function animate() {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+  ctx.fillRect(0, 0, width, height);
+
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.update();
+    p.draw(ctx);
+    if (p.isOffscreen()) {
+      projectiles.splice(i, 1);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>
